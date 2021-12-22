@@ -101,7 +101,7 @@ func (h *Client) doHTTPRequest(req *http.Request, headers map[string]string) ([]
 	}
 
 	// debug
-	reqBytes, err := httputil.DumpRequest(req, true)
+	reqBytes, err := httputil.DumpRequest(req, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dump request; %w", err)
 	}

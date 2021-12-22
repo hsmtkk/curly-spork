@@ -60,18 +60,22 @@ func main() {
 		data, err := fileGetter.GetFile(ctx, sha256)
 		if err != nil {
 			sugar.Errorf("failed to get file; %v", err)
+			continue
 		}
 		respBytes, err := fileSubmitter.SubmitFile(sha256, data)
 		if err != nil {
 			sugar.Errorf("failed to submit; %v", err)
+			continue
 		}
 		taskID, err := submitFileParser.ParseSubmitFile(respBytes)
 		if err != nil {
 			sugar.Errorf("failed to parse; %v", err)
+			continue
 		}
 		sugar.Infow("scan-work send", "taskID", taskID)
 		if err := natsConn.Publish(myconst.PollingFalconQueue, []byte(taskID)); err != nil {
 			sugar.Errorf("failed to publish; %v", err)
+			continue
 		}
 	}
 }
