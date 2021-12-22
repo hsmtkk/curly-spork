@@ -1,0 +1,11 @@
+---
+version: "3.8"
+services:
+  redis:
+    image: redis:6.2
+    ports:
+      - "6379:6379"
+  nats:
+    image: nats:2.6
+    ports:
+      - "4222:4222"
