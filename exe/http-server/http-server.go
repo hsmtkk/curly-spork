@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/hsmtkk/curly-spork/env"
 	"github.com/hsmtkk/curly-spork/filerepo"
 	"github.com/hsmtkk/curly-spork/reportrepo"
@@ -19,6 +20,8 @@ import (
 
 func main() {
 	httpPort := env.RequiredInt("HTTP_PORT")
+	redisHost := env.RequiredString("REDIS_HOST")
+	redisPort := env.RequiredInt("REDIS_PORT")
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -27,9 +30,19 @@ func main() {
 	defer logger.Sync()
 	sugar := logger.Sugar()
 
-	// TODO connect redis
-	fileRepo := filerepo.New()
-	reportRepo := reportrepo.New()
+	redisAddr := fmt.Sprintf("%s:%d", redisHost, redisPort)
+	fileClient := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: "",
+		DB:       0,
+	})
+	reportClient := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: "",
+		DB:       1,
+	})
+	fileRepo := filerepo.New(sugar, fileClient)
+	reportRepo := reportrepo.New(sugar, reportClient)
 
 	hdl := &handler{sugar, fileRepo, reportRepo}
 
