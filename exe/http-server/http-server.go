@@ -38,13 +38,13 @@ func main() {
 	fileClient := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: "",
-		DB:       0,
+		DB:       myconst.FileDB,
 	})
 	defer fileClient.Close()
 	reportClient := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: "",
-		DB:       1,
+		DB:       myconst.ReportDB,
 	})
 	defer reportClient.Close()
 	fileRepo := filerepo.New(sugar, fileClient)
