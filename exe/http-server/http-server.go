@@ -12,9 +12,11 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/hsmtkk/curly-spork/env"
 	"github.com/hsmtkk/curly-spork/filerepo"
+	"github.com/hsmtkk/curly-spork/myconst"
 	"github.com/hsmtkk/curly-spork/reportrepo"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -22,6 +24,8 @@ func main() {
 	httpPort := env.RequiredInt("HTTP_PORT")
 	redisHost := env.RequiredString("REDIS_HOST")
 	redisPort := env.RequiredInt("REDIS_PORT")
+	natsHost := env.RequiredString("NATS_HOST")
+	natsPort := env.RequiredInt("NATS_PORT")
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -36,15 +40,24 @@ func main() {
 		Password: "",
 		DB:       0,
 	})
+	defer fileClient.Close()
 	reportClient := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: "",
 		DB:       1,
 	})
+	defer reportClient.Close()
 	fileRepo := filerepo.New(sugar, fileClient)
 	reportRepo := reportrepo.New(sugar, reportClient)
 
-	hdl := &handler{sugar, fileRepo, reportRepo}
+	natsURL := fmt.Sprintf("nats://%s:%d", natsHost, natsPort)
+	natsConn, err := nats.Connect(natsURL)
+	if err != nil {
+		log.Fatalf("failed to connect NATS; %v", err)
+	}
+	defer natsConn.Close()
+
+	hdl := &handler{sugar, fileRepo, reportRepo, natsConn}
 
 	e := echo.New()
 
@@ -59,6 +72,7 @@ type handler struct {
 	sugar      *zap.SugaredLogger
 	fileRepo   fileRepo
 	reportRepo reportRepo
+	natsConn   *nats.Conn
 }
 
 type submitFileRequest struct {
@@ -79,7 +93,9 @@ func (h *handler) SubmitFile(ctx echo.Context) error {
 	if err := h.fileRepo.PutFile(ctx.Request().Context(), sha256, data); err != nil {
 		return fmt.Errorf("failed to put record; %w", err)
 	}
-	// TODO: write sha256 to the queue
+	if err := h.natsConn.Publish(myconst.WaitingScanQueue, []byte(sha256)); err != nil {
+		return fmt.Errorf("failed to publish; %w", err)
+	}
 	return ctx.String(http.StatusOK, sha256)
 }
 
