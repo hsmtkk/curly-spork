@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -9,6 +10,8 @@ import (
 	"net/http"
 
 	"github.com/hsmtkk/curly-spork/env"
+	"github.com/hsmtkk/curly-spork/filerepo"
+	"github.com/hsmtkk/curly-spork/reportrepo"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap"
@@ -24,7 +27,11 @@ func main() {
 	defer logger.Sync()
 	sugar := logger.Sugar()
 
-	hdl := &handler{sugar}
+	// TODO connect redis
+	fileRepo := filerepo.New()
+	reportRepo := reportrepo.New()
+
+	hdl := &handler{sugar, fileRepo, reportRepo}
 
 	e := echo.New()
 
@@ -36,7 +43,9 @@ func main() {
 }
 
 type handler struct {
-	sugar *zap.SugaredLogger
+	sugar      *zap.SugaredLogger
+	fileRepo   fileRepo
+	reportRepo reportRepo
 }
 
 type submitFileRequest struct {
@@ -54,7 +63,9 @@ func (h *handler) SubmitFile(ctx echo.Context) error {
 		return fmt.Errorf("failed to decode with Base64; %w", err)
 	}
 	sha256 := calcSHA256(data)
-	// TODO: write content to the database
+	if err := h.fileRepo.PutFile(ctx.Request().Context(), sha256, data); err != nil {
+		return fmt.Errorf("failed to put record; %w", err)
+	}
 	// TODO: write sha256 to the queue
 	return ctx.String(http.StatusOK, sha256)
 }
@@ -62,12 +73,25 @@ func (h *handler) SubmitFile(ctx echo.Context) error {
 func (h *handler) ReportSummary(ctx echo.Context) error {
 	sha256 := ctx.Param("sha256")
 	h.sugar.Infow("report-summary", "sha256", sha256)
-	// TODO: query database
-	return ctx.String(http.StatusOK, sha256)
+	report, err := h.reportRepo.GetReport(ctx.Request().Context(), sha256)
+	if err != nil {
+		return fmt.Errorf("failed to get record; %w", err)
+	}
+	return ctx.String(http.StatusOK, report)
 }
 
 func calcSHA256(data []byte) string {
 	hash := sha256.Sum256(data)
 	bs := hash[:]
 	return hex.EncodeToString(bs)
+}
+
+type fileRepo interface {
+	PutFile(ctx context.Context, sha256 string, data []byte) error
+	GetFile(ctx context.Context, sha256 string) ([]byte, error)
+}
+
+type reportRepo interface {
+	PutReport(ctx context.Context, sha256, report string) error
+	GetReport(ctx context.Context, sha256 string) (string, error)
 }
