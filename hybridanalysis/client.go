@@ -30,7 +30,7 @@ func NewClient(sugar *zap.SugaredLogger, apiKey string) *Client {
 	return &Client{sugar, client, apiKey, baseURL}
 }
 
-func NewClientForTest(sugar *zap.SugaredLogger, client *http.Client, baseURL string) *HybridAnalysis {
+func NewClientForTest(sugar *zap.SugaredLogger, client *http.Client, baseURL string) *Client {
 	apiKey := "test"
 	return &Client{sugar, client, apiKey, baseURL}
 }
@@ -82,8 +82,8 @@ func (h *Client) submitFile(contentType string, reqBody []byte) ([]byte, error) 
 	return h.doHTTPRequest(req, headers)
 }
 
-func (h *Client) ReportSummary(taskID string) ([]byte, error) {
-	url := fmt.Sprintf("%s/report/%s/summary", v2APIBaseURL, taskID)
+func (h *Client) ReportSummary(jobID string) ([]byte, error) {
+	url := fmt.Sprintf("%s/report/%s/summary", v2APIBaseURL, jobID)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request; %w", err)

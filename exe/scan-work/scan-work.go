@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	"github.com/hsmtkk/curly-spork/env"
 	"github.com/hsmtkk/curly-spork/filerepo"
 	"github.com/hsmtkk/curly-spork/hybridanalysis"
